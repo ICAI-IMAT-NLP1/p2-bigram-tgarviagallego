@@ -23,13 +23,17 @@ def bigrams_count_to_probabilities(
     """
     # Normalize each row to sum to 1, converting counts to probabilities, remember to add smooth_factor
     # TODO
-    return None
+    calculated_probabilities = torch.zeros(bigram_counts.size(0), bigram_counts.size(1))
+    for i in range(calculated_probabilities.size(0)):
+        for j in range(calculated_probabilities.size(1)):
+            calculated_probabilities[i,j] = (bigram_counts[i, j] + smooth_factor) / (bigram_counts[i, :].sum() + smooth_factor * bigram_counts.size(0))
+    return calculated_probabilities
 
 
 
 def calculate_neg_mean_log_likelihood(
     words: List[str],
-    bigram_probabilities: torch.tensor,
+    bigram_probabilities: torch.Tensor,
     char_to_index: Dict[str, int],
     start_token: str = "<S>",
     end_token: str = "<E>",
@@ -53,14 +57,16 @@ def calculate_neg_mean_log_likelihood(
     """
     # Initialize total log likelihood
     # TODO
-    total_log_likelihood: torch.tensor = None
+    total_log_likelihood: torch.Tensor = torch.empty(len(words))
 
     # Calculate the log likelihood for each word and accumulate
     # TODO
+    for i, word in enumerate(words):
+        total_log_likelihood[i] = calculate_log_likelihood(word, bigram_probabilities, char_to_index, start_token, end_token)
 
     # Calculate and return the negative mean log likelihood
     # TODO
-    mean_log_likelihood: float = None
+    mean_log_likelihood: float = (-1)*total_log_likelihood.mean().item()
     return mean_log_likelihood
 
 
@@ -82,15 +88,15 @@ def sample_next_character(
     """
     # Get the probability distribution for the current character
     # TODO
-    current_probs: torch.Tensor[float] = None
+    current_probs: torch.Tensor = probability_distribution[current_char_index,:]
 
     # Sample an index from the distribution using the torch.multinomial function
     # TODO
-    next_char_index: int = None
+    next_char_index: int = int(torch.multinomial(current_probs, 1).item())
 
     # Map the index back to a character
     # TODO
-    next_char: str = None
+    next_char: str = idx_to_char[next_char_index]
     return next_char
 
 
@@ -122,11 +128,16 @@ def generate_name(
     """
     # Start with the start token and an empty name
     # TODO
-    current_char: str = None
-    generated_name: str = None
+    current_char: str = start_token
+    generated_name: str = ""
 
     # Iterate to build the name
     # TODO
+    while (current_char != end_token and len(generated_name) < max_length):
+        current_char = sample_next_character(char_to_idx[current_char], bigram_probabilities, idx_to_char)
+        generated_name += current_char
+    if (generated_name[-1] != end_token):
+        generated_name += end_token
 
     return generated_name
 
@@ -157,20 +168,22 @@ def calculate_log_likelihood(
         end_char: str. The character that denotes the end of a word. Shall be a single character.
 
     Returns:
-        Tensor. The log likelihood of the word.
+        float. The log likelihood of the word.
     """
     # Add start and end characters to the word
     # TODO
-    processed_word: str = None
+    processed_word: str = start_token + word.lower() + end_token
 
     # Initialize log likelihood
     # TODO
-    log_likelihood: torch.tensor = None
+    log_likelihood: torch.Tensor = torch.zeros(len(processed_word)-1)
 
     # Iterate through bigrams in the word and accumulate their log probabilities
     # TODO
+    for i in range(len(processed_word)-1):
+        log_likelihood[i] = torch.log(bigram_probabilities[char_to_index[processed_word[i]], char_to_index[processed_word[i+1]]])
 
-    return log_likelihood
+    return log_likelihood.sum()
 
 if __name__ == "__main__":
     pass
